@@ -394,9 +394,3 @@ class SpeedGaugePainter extends CustomPainter {
     return oldDelegate.speed != speed || oldDelegate.maxSpeed != maxSpeed;
   }
 }
-
-  @override
-  bool shouldRepaint(covariant SpeedGaugePainter oldDelegate) {
-    return oldDelegate.speed != speed || oldDelegate.maxSpeed != maxSpeed;
-  }
-}
