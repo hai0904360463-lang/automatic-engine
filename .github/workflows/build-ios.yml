@@ -1,0 +1,72 @@
+name: Build iOS IPA (unsigned)
+
+# Tự chạy mỗi khi bạn push code lên nhánh main
+# Cũng có thể bấm chạy tay trong tab "Actions" trên GitHub
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest   # GitHub cấp máy macOS miễn phí để build, bạn không cần Mac
+
+    steps:
+      - name: Lấy code từ repo
+        uses: actions/checkout@v4
+
+      - name: Cài Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Cài package
+        run: flutter pub get
+
+      - name: Sinh khung project iOS + Android tự động
+        run: flutter create . --platforms=ios,android --project-name speedo_app
+
+      - name: Đặt code vào đúng thư mục lib/ mà Flutter yêu cầu
+        run: |
+          mkdir -p lib
+          cp main.dart lib/main.dart
+
+      - name: Áp quyền GPS vào Info.plist (dùng file đã chuẩn bị sẵn trong repo)
+        run: cp Info.plist ios/Runner/Info.plist
+
+      - name: Cài lại package sau khi có khung project
+        run: flutter pub get
+
+      - name: Chuẩn bị cấu hình Xcode (pod install, không build)
+        run: flutter build ios --release --no-codesign --config-only
+
+      - name: Build thủ công bằng xcodebuild, ép tắt hẳn code signing
+        run: |
+          cd ios
+          xcodebuild -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_STYLE=Manual \
+            -derivedDataPath ../build/ios_manual \
+            clean build
+
+      - name: Đóng gói thành file .ipa
+        run: |
+          cd build/ios_manual/Build/Products/Release-iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/Runner.app
+          zip -r speedo_app.ipa Payload
+          cd -
+          mv build/ios_manual/Build/Products/Release-iphoneos/speedo_app.ipa .
+
+      - name: Upload file .ipa để tải về
+        uses: actions/upload-artifact@v4
+        with:
+          name: speedo_app-ipa
+          path: speedo_app.ipa
