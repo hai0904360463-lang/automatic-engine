@@ -322,7 +322,8 @@ class SpeedGaugePainter extends CustomPainter {
 
     // Vòng cung màu thể hiện mức tốc độ hiện tại (xanh thấp -> đỏ cao)
     final progressPaint = Paint()
-      ..color = Color.lerp(Colors.greenAccent, Colors.redAccent, progress)
+      ..color = Color.lerp(Colors.greenAccent, Colors.redAccent, progress) ??
+          Colors.redAccent
       ..style = PaintingStyle.stroke
       ..strokeWidth = 14
       ..strokeCap = StrokeCap.round;
@@ -387,6 +388,12 @@ class SpeedGaugePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2);
   }
+
+  @override
+  bool shouldRepaint(covariant SpeedGaugePainter oldDelegate) {
+    return oldDelegate.speed != speed || oldDelegate.maxSpeed != maxSpeed;
+  }
+}
 
   @override
   bool shouldRepaint(covariant SpeedGaugePainter oldDelegate) {
