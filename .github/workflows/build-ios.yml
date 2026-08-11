@@ -1,7 +1,5 @@
 name: Build iOS IPA (unsigned)
 
-# Tự chạy mỗi khi bạn push code lên nhánh main
-# Cũng có thể bấm chạy tay trong tab "Actions" trên GitHub
 on:
   push:
     branches: [ main ]
@@ -9,7 +7,7 @@ on:
 
 jobs:
   build-ipa:
-    runs-on: macos-latest   # GitHub cấp máy macOS miễn phí để build, bạn không cần Mac
+    runs-on: macos-latest
 
     steps:
       - name: Lấy code từ repo
@@ -21,27 +19,30 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Cài package
-        run: flutter pub get
-
-      - name: Sinh khung project iOS + Android tự động
-        run: flutter create . --platforms=ios,android --project-name speedo_app
-
-      - name: Đặt code vào đúng thư mục lib/ mà Flutter yêu cầu
+      - name: Tạo cấu trúc lib nếu chưa có và chuyển main.dart vào lib
         run: |
           mkdir -p lib
-          cp main.dart lib/main.dart
+          if [ -f main.dart ]; then
+            mv main.dart lib/main.dart
+          fi
 
-      - name: Áp quyền GPS vào Info.plist (dùng file đã chuẩn bị sẵn trong repo)
-        run: cp Info.plist ios/Runner/Info.plist
+      - name: Tạo cấu trúc ios/Runner và đưa Info.plist vào đúng vị trí
+        run: |
+          mkdir -p ios/Runner
+          if [ -f Info.plist ]; then
+            cp Info.plist ios/Runner/Info.plist
+          fi
 
-      - name: Cài lại package sau khi có khung project
+      - name: Tự động sinh khung project iOS/Android nếu thiếu
+        run: flutter create . --platforms=ios,android --project-name speedo_app
+
+      - name: Lấy các package
         run: flutter pub get
 
-      - name: Chuẩn bị cấu hình Xcode (pod install, không build)
+      - name: Chuẩn bị cấu hình Xcode
         run: flutter build ios --release --no-codesign --config-only
 
-      - name: Build thủ công bằng xcodebuild, ép tắt hẳn code signing
+      - name: Build thủ công bằng xcodebuild (Tắt Code Signing)
         run: |
           cd ios
           xcodebuild -workspace Runner.xcworkspace \
@@ -56,7 +57,7 @@ jobs:
             -derivedDataPath ../build/ios_manual \
             clean build
 
-      - name: Đóng gói thành file .ipa
+      - name: Đóng gói file .ipa
         run: |
           cd build/ios_manual/Build/Products/Release-iphoneos
           mkdir -p Payload
@@ -65,7 +66,7 @@ jobs:
           cd -
           mv build/ios_manual/Build/Products/Release-iphoneos/speedo_app.ipa .
 
-      - name: Upload file .ipa để tải về
+      - name: Upload file .ipa lên Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: speedo_app-ipa
